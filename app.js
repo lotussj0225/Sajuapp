@@ -49,6 +49,25 @@ const monthTerms = [
   { month: 12, day: 7, branch: 0 }
 ];
 
+const lunarInfo = [
+  0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+  0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+  0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+  0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+  0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+  0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0, 0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0,
+  0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+  0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b6a0, 0x195a6,
+  0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+  0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x05ac0, 0x0ab60, 0x096d5, 0x092e0,
+  0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+  0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+  0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+  0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+  0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
+  0x14b63
+];
+
 const monthStemStarts = [2, 4, 6, 8, 0];
 const hourStemStarts = [0, 2, 4, 6, 8];
 const form = document.querySelector("#birthForm");
@@ -85,6 +104,100 @@ function getShiftedDateParts(year, month, day, offsetDays) {
     year: date.getFullYear(),
     month: date.getMonth() + 1,
     day: date.getDate()
+  };
+}
+
+function getLunarYearInfo(year) {
+  return lunarInfo[year - 1900];
+}
+
+function leapMonth(year) {
+  return getLunarYearInfo(year) & 0xf;
+}
+
+function leapDays(year) {
+  if (!leapMonth(year)) {
+    return 0;
+  }
+  return getLunarYearInfo(year) & 0x10000 ? 30 : 29;
+}
+
+function lunarMonthDays(year, month) {
+  return getLunarYearInfo(year) & (0x10000 >> month) ? 30 : 29;
+}
+
+function lunarYearDays(year) {
+  let sum = 348;
+  for (let mask = 0x8000; mask > 0x8; mask >>= 1) {
+    if (getLunarYearInfo(year) & mask) {
+      sum += 1;
+    }
+  }
+  return sum + leapDays(year);
+}
+
+function lunarToSolar(year, month, day, isLeapMonth = false) {
+  if (year < 1900 || year > 2050) {
+    throw new Error("음력 변환은 1900년부터 2050년까지만 지원합니다.");
+  }
+  if (month < 1 || month > 12) {
+    throw new Error("음력 월을 확인해 주세요.");
+  }
+
+  const leap = leapMonth(year);
+  const maxDays = isLeapMonth ? leapDays(year) : lunarMonthDays(year, month);
+  if (isLeapMonth && leap !== month) {
+    throw new Error(`${year}년에는 음력 ${month}월 윤달이 없습니다.`);
+  }
+  if (day < 1 || day > maxDays) {
+    throw new Error(`음력 ${month}월은 ${maxDays}일까지 있습니다.`);
+  }
+
+  let offset = 0;
+  for (let y = 1900; y < year; y += 1) {
+    offset += lunarYearDays(y);
+  }
+  for (let m = 1; m < month; m += 1) {
+    offset += lunarMonthDays(year, m);
+    if (leap === m) {
+      offset += leapDays(year);
+    }
+  }
+  if (isLeapMonth) {
+    offset += lunarMonthDays(year, month);
+  }
+  offset += day - 1;
+
+  const solar = new Date(1900, 0, 31);
+  solar.setDate(solar.getDate() + offset);
+  return {
+    year: solar.getFullYear(),
+    month: solar.getMonth() + 1,
+    day: solar.getDate()
+  };
+}
+
+function resolveInputDate(dateValue, calendarType, isLeapMonth) {
+  const [inputYear, inputMonth, inputDay] = dateValue.split("-").map(Number);
+  if (calendarType === "lunar") {
+    return {
+      inputYear,
+      inputMonth,
+      inputDay,
+      calendarType,
+      isLeapMonth,
+      ...lunarToSolar(inputYear, inputMonth, inputDay, isLeapMonth)
+    };
+  }
+  return {
+    inputYear,
+    inputMonth,
+    inputDay,
+    calendarType,
+    isLeapMonth: false,
+    year: inputYear,
+    month: inputMonth,
+    day: inputDay
   };
 }
 
@@ -204,8 +317,9 @@ function buildDaeun(chart, gender) {
   };
 }
 
-function buildChart(dateValue, timeValue, yajaEnabled = true, gender = "neutral") {
-  const [year, month, day] = dateValue.split("-").map(Number);
+function buildChart(dateValue, timeValue, yajaEnabled = true, gender = "neutral", calendarType = "solar", isLeapMonth = false) {
+  const resolvedDate = resolveInputDate(dateValue, calendarType, isLeapMonth);
+  const { year, month, day } = resolvedDate;
   const [hour, minute] = timeValue.split(":").map(Number);
   const isYajaRange = hour === 23 && minute >= 30;
   const nextDate = getShiftedDateParts(year, month, day, 1);
@@ -229,6 +343,11 @@ function buildChart(dateValue, timeValue, yajaEnabled = true, gender = "neutral"
     day,
     hour,
     minute,
+    inputYear: resolvedDate.inputYear,
+    inputMonth: resolvedDate.inputMonth,
+    inputDay: resolvedDate.inputDay,
+    calendarType: resolvedDate.calendarType,
+    isLeapMonth: resolvedDate.isLeapMonth,
     yajaEnabled,
     yajaApplied: yajaEnabled && isYajaRange,
     pillars,
@@ -283,7 +402,8 @@ function renderChart(chart) {
   const { dominant, weak } = getDominantAndWeak(chart.counts);
 
   const yajaLabel = chart.yajaApplied ? " · 야자시 적용" : chart.yajaEnabled ? " · 야자시 대기" : "";
-  document.querySelector("#resultKicker").textContent = `${chart.year}.${String(chart.month).padStart(2, "0")}.${String(chart.day).padStart(2, "0")} ${String(chart.hour).padStart(2, "0")}:${String(chart.minute).padStart(2, "0")}${yajaLabel}`;
+  const inputCalendarLabel = chart.calendarType === "lunar" ? `음력${chart.isLeapMonth ? " 윤달" : ""} ${chart.inputYear}.${String(chart.inputMonth).padStart(2, "0")}.${String(chart.inputDay).padStart(2, "0")} → ` : "양력 ";
+  document.querySelector("#resultKicker").textContent = `${inputCalendarLabel}${chart.year}.${String(chart.month).padStart(2, "0")}.${String(chart.day).padStart(2, "0")} ${String(chart.hour).padStart(2, "0")}:${String(chart.minute).padStart(2, "0")}${yajaLabel}`;
   document.querySelector("#resultTitle").textContent = `${name}의 중심 기운은 ${chart.dayMaster.hanja}(${chart.dayMaster.ko}) ${chart.dayMaster.element}입니다`;
   document.querySelector("#dayMasterBadge").textContent = `${chart.dayMaster.ko.toUpperCase()} ${chart.dayMaster.element}`;
 
@@ -537,6 +657,8 @@ function getReading(chart, tabName) {
 
 function setDefaultDate() {
   const input = document.querySelector("#birthDate");
+  input.min = "1900-01-01";
+  input.max = "2050-12-31";
   if (!input.value) {
     input.value = "1995-05-15";
   }
@@ -549,17 +671,41 @@ form.addEventListener("submit", (event) => {
 
 document.querySelector("#yajaTime").addEventListener("change", updateChartFromInputs);
 document.querySelector("#gender").addEventListener("change", updateChartFromInputs);
+document.querySelector("#calendarType").addEventListener("change", () => {
+  syncCalendarControls();
+  updateChartFromInputs();
+});
+document.querySelector("#leapMonth").addEventListener("change", updateChartFromInputs);
+
+function syncCalendarControls() {
+  const isLunar = document.querySelector("#calendarType").value === "lunar";
+  const leapInput = document.querySelector("#leapMonth");
+  document.querySelector("#dateLabel").textContent = isLunar ? "음력 생년월일" : "양력 생년월일";
+  leapInput.disabled = !isLunar;
+  if (!isLunar) {
+    leapInput.checked = false;
+  }
+  document.querySelector(".lunar-switch").classList.toggle("disabled", !isLunar);
+}
 
 function updateChartFromInputs() {
   const dateValue = document.querySelector("#birthDate").value;
   const timeValue = document.querySelector("#birthTime").value;
   const yajaEnabled = document.querySelector("#yajaTime").checked;
   const gender = document.querySelector("#gender").value;
+  const calendarType = document.querySelector("#calendarType").value;
+  const isLeapMonth = document.querySelector("#leapMonth").checked;
   if (!dateValue || !timeValue) {
     return;
   }
-  currentChart = buildChart(dateValue, timeValue, yajaEnabled, gender);
-  renderChart(currentChart);
+  try {
+    currentChart = buildChart(dateValue, timeValue, yajaEnabled, gender, calendarType, isLeapMonth);
+    renderChart(currentChart);
+  } catch (error) {
+    document.querySelector("#resultKicker").textContent = "날짜 입력 확인";
+    document.querySelector("#resultTitle").textContent = error.message;
+    document.querySelector("#dayMasterBadge").textContent = "확인";
+  }
 }
 
 tabs.forEach((tab) => {
@@ -567,5 +713,6 @@ tabs.forEach((tab) => {
 });
 
 setDefaultDate();
-currentChart = buildChart(document.querySelector("#birthDate").value, document.querySelector("#birthTime").value, document.querySelector("#yajaTime").checked, document.querySelector("#gender").value);
+syncCalendarControls();
+currentChart = buildChart(document.querySelector("#birthDate").value, document.querySelector("#birthTime").value, document.querySelector("#yajaTime").checked, document.querySelector("#gender").value, document.querySelector("#calendarType").value, document.querySelector("#leapMonth").checked);
 renderChart(currentChart);

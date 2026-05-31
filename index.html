@@ -27,17 +27,25 @@
 
           <div class="field-grid">
             <label>
-              <span>생년월일</span>
-              <input id="birthDate" type="date" required />
+              <span>달력</span>
+              <select id="calendarType">
+                <option value="solar">양력</option>
+                <option value="lunar">음력</option>
+              </select>
             </label>
 
             <label>
-              <span>태어난 시간</span>
-              <input id="birthTime" type="time" value="12:00" required />
+              <span id="dateLabel">생년월일</span>
+              <input id="birthDate" type="date" required />
             </label>
           </div>
 
           <div class="field-grid">
+            <label>
+              <span>태어난 시간</span>
+              <input id="birthTime" type="time" value="12:00" required />
+            </label>
+
             <label>
               <span>성별</span>
               <select id="gender">
@@ -46,7 +54,9 @@
                 <option value="male">남성</option>
               </select>
             </label>
+          </div>
 
+          <div class="field-grid">
             <label>
               <span>관심 운</span>
               <select id="focus">
@@ -55,6 +65,14 @@
                 <option value="love">연애/관계</option>
                 <option value="mind">마음/성향</option>
               </select>
+            </label>
+
+            <label class="switch-row lunar-switch disabled">
+              <input id="leapMonth" type="checkbox" disabled />
+              <span>
+                <strong>윤달</strong>
+                <em>음력 윤달 생일이면 선택</em>
+              </span>
             </label>
           </div>
 
@@ -74,7 +92,7 @@
 
         <div class="mini-note">
           <strong>현재 버전</strong>
-          <span>양력 날짜, 24절기 근사, 야자시 23:30 기준으로 풀이합니다.</span>
+          <span>양력/음력 입력, 24절기 근사, 야자시 23:30 기준으로 풀이합니다.</span>
         </div>
       </section>
 

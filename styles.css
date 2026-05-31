@@ -197,6 +197,14 @@ select:focus {
   font-weight: 600;
 }
 
+.switch-row.disabled {
+  opacity: 0.58;
+}
+
+.switch-row.disabled input {
+  cursor: not-allowed;
+}
+
 .primary-button {
   display: inline-flex;
   align-items: center;
